@@ -47,17 +47,16 @@ in-sample data (2015-2021) only; the backtest trades out-of-sample
 (2022-2026) — the hedge ratio is never re-fit using data from the trading
 period itself, to avoid look-ahead bias.
 Signal: a rolling 20-day z-score of the spread (price_A - beta * price_B),
-using only trailing data (.shift(1) convention â today's own value never
+using only trailing data (.shift(1) convention -- today's own value never
 contributes to its own normalization baseline). Entry at |z| > 2.0, exit
 at |z| < 0.5, stop-loss at |z| > 3.5.
 
-Hedge ratio: can be static (fit once, in-sample) or dynamic â a
-from-scratch Kalman filter that re-estimates the hedge ratio (and
+Hedge ratio: can be static (fit once, in-sample) or dynamic - a from-scratch Kalman filter that re-estimates the hedge ratio (and
 optionally the intercept) one bar at a time, using only data up to and
 including that bar. Toggle via Strategy(use_kalman=..., track_alpha=...).
 
 Execution: signals are computed using data through bar t, but trades
-execute at bar t+1's price â never the same bar the signal was generated
+execute at bar t+1's price - never the same bar the signal was generated
 on. Transaction costs (5 bps/leg), slippage (3 bps), and daily borrow cost
 (3% annualized on the short leg) are all applied.
 
