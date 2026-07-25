@@ -62,7 +62,7 @@ on. Transaction costs (5 bps/leg), slippage (3 bps), and daily borrow cost
 
 Testing: the most important test (test_kalman_filter.py) asserts that
 changing a future price never changes a past value of the estimated
-hedge ratio â the concrete, checkable definition of "no look-ahead bias"
+hedge ratio -- the concrete, checkable definition of "no look-ahead bias"
 used throughout this project.
 
 Current status
