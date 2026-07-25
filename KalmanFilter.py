@@ -23,15 +23,20 @@ class AssetDataLoader:
         return out_of_sample
 
 class Strategy:
-    def __init__(self, q_multiplier=1e-9, use_kalman = True):
+    def __init__(self, q_multiplier=1e-9, use_kalman=True, track_alpha=False,
+                 q_beta=1e-4, q_alpha=0.05):
         self.q_multiplier = q_multiplier
         self.use_kalman = use_kalman
+        self.track_alpha = track_alpha
+        self.q_beta = q_beta
+        self.q_alpha = q_alpha
         self.alpha = None
         self.static_beta = None
         self.R = None
         self.Q = None
         self.beta = None
         self.P = None
+        self.state = None
         self.spread_buffer = deque(maxlen=ROLLING_WINDOW)
         self.position = "flat"
 
@@ -41,33 +46,58 @@ class Strategy:
         static_spread = compute_spread(in_sample_data, self.static_beta)
         adf_stat, p_value = adf_test(static_spread)
         half_life, theta = compute_half_life(static_spread)
-        print(f"[Strategy.fit] ADF p-value={p_value:.4f}, hlaf-life  = {half_life:.2f} days")
+        print(f"[Strategy.fit] ADF p-value={p_value:.4f}, half-life  = {half_life:.2f} days")
 
         residuals = in_sample_data["A_close"] - (self.alpha +(self.static_beta*in_sample_data["B_close"]))
 
         self.R = residuals.var()
-        self.Q = self.R * self.q_multiplier
         self.beta = self.static_beta
-        self.P = 1.0
+
+        if self.track_alpha:
+            self.Q = np.array([[self.q_beta, 0.0], [0.0, self.q_alpha]])
+            self.state = np.array([self.static_beta, self.alpha])
+            self.P = np.diag([1.0, 1.0])
+        else:
+            self.Q = self.R * self.q_multiplier
+            self.P = 1.0
 
     def _step_kalman(self, price_a_t, price_b_t):
-        beta_pred = self.beta
-        P_pred = self.P + self.Q
+        if self.track_alpha:
+            x_pred = self.state
+            P_pred = self.P + self.Q
 
-        y_pred = self.alpha + beta_pred*price_b_t 
+            H = np.array([price_b_t, 1.0])
+            y_pred = H @ x_pred
+            innovation = price_a_t - y_pred
+            S = H @ P_pred @ H + self.R
+            K = P_pred @ H / S
 
-        innovation= price_a_t - y_pred
-        S = price_b_t**2 * P_pred + self.R
-        K = P_pred*price_b_t/S
+            self.state = x_pred + K * innovation
+            self.P = P_pred - np.outer(K, H) @ P_pred
 
-        self.beta = beta_pred + K*innovation
-        self.P = (1-K*price_b_t)*P_pred
+            self.beta = self.state[0]
+            self.alpha = self.state[1]
+        else:
+            beta_pred = self.beta
+            P_pred = self.P + self.Q
+
+            y_pred = self.alpha + beta_pred*price_b_t
+
+            innovation= price_a_t - y_pred
+            S = price_b_t**2 * P_pred + self.R
+            K = P_pred*price_b_t/S
+
+            self.beta = beta_pred + K*innovation
+            self.P = (1-K*price_b_t)*P_pred
 
     def generate_signal(self, price_a_t, price_b_t):
         if self.use_kalman:
             self._step_kalman(price_a_t, price_b_t)
 
-        spread_t = price_a_t - self.beta*price_b_t
+        if self.track_alpha:
+            spread_t = price_a_t - self.beta*price_b_t - self.alpha
+        else:
+            spread_t = price_a_t - self.beta*price_b_t
 
         if len(self.spread_buffer)==ROLLING_WINDOW:
             mean = np.mean(self.spread_buffer)
@@ -83,14 +113,15 @@ class Strategy:
         if np.isnan(z_t):
             new_position = "flat"
 
-        else : 
+        else :
             new_position = generate_position(z_t, self.position)
 
         self.position = new_position
 
         return{
-            "beta" : self.beta, 
-            "spread": spread_t, 
+            "beta" : self.beta,
+            "alpha" : self.alpha,
+            "spread": spread_t,
             "zscore" : z_t,
             "position": new_position
         }

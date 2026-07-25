@@ -33,6 +33,7 @@ class ExecutionEngine:
 
         equity_records = []
         trade_log = []
+        signal_records= []
         total_transaction_cost =0.0
         total_slippage_cost = 0.0
         total_borrow_cost = 0.0
@@ -136,16 +137,23 @@ class ExecutionEngine:
                 portfolio_value = cash + shares_a*price_a + shares_b*price_b
 
                 equity_records.append({"date" : date, "portfolio_value": portfolio_value})
+                signal_records.append({
+                    "date": date,
+                    "beta": signal["beta"],
+                    "spread": signal["spread"],
+                    "zscore": signal["zscore"],
+                })
 
 
         equity_curve = pd.DataFrame(equity_records).set_index("date")["portfolio_value"]
         trade_log_df = pd.DataFrame(trade_log)
+        signal_history = pd.DataFrame(signal_records).set_index("date")
         cost_summary = {
             "transaction": total_transaction_cost,
             "slippage" : total_slippage_cost,
             "borrow" : total_borrow_cost
         }
-        return equity_curve, trade_log_df, cost_summary
+        return equity_curve, trade_log_df, cost_summary, signal_history
 
 # smoke test
 
@@ -155,11 +163,11 @@ if __name__ == "__main__":
     data = loader.load()
     in_sample = loader.get_in_sample()
 
-    strategy = Strategy(q_multiplier= 1e-9, use_kalman=True)
+    strategy = Strategy(q_multiplier= 1e-9, use_kalman=False)
     strategy.fit(in_sample)
 
     engine = ExecutionEngine(initial_capital=100_000)
-    equity_curve, trade_log, cost_summary = engine.run(data, strategy)
+    equity_curve, trade_log, cost_summary, signal_history = engine.run(data, strategy)
     net_pnl = equity_curve.iloc[-1] - equity_curve.iloc[0]
     total_costs =sum(cost_summary.values())
     gross_pnl = net_pnl + total_costs
@@ -174,6 +182,14 @@ if __name__ == "__main__":
     print(trade_log["exit_reason"].value_counts())
     print(trade_log.head())
 
+    from metrics import PerformanceVisualizer
+    visualizer = PerformanceVisualizer(equity_curve, trade_log, signal_history, strategy.static_beta)
+
+    visualizer.summary()
+    visualizer.plot_equity_curve()
+    visualizer.plot_drawdown()
+    visualizer.plot_spread_and_signals()
+    visualizer.plot_rolling_beta()
 
 
 

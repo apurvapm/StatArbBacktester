@@ -5,8 +5,11 @@ TICKER_B = "MA"
 START_DATE = "2015-01-01"
 END_DATE = "2026-07-01"
 
-IN_SAMPLE_END = "2021-12-31"        
+IN_SAMPLE_END = "2021-12-31"
 OUT_OF_SAMPLE_START = "2022-01-01"
+
+VALIDATION_END = "2023-12-31"   # tune hyperparameters using only this window
+TEST_START = "2024-01-01"       # final, single evaluation - never used for tuning decisions
 
 ROLLING_WINDOW = 20 ## DAYS FOR Z-SCORE MEAN/STD
 ENTRY_Z = 2.0

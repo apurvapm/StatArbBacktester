@@ -35,13 +35,29 @@ def compute_half_life(spread):
 
 if __name__ =="__main__":
     data = load_pair_data()
-    in_sample, _ = split_in_out_sample(data)
+    in_sample, out_of_sample = split_in_out_sample(data)
 
     alpha, beta = compute_hedge_ratio(in_sample)
+    print("For in-sample data: ")
     print(f"Hedge ratio (beta): {beta:.4f}")
     print(f"Intercept (alpha):  {alpha:.4f}")
 
     spread = compute_spread(in_sample, beta)
+
+    adf_stat, p_value = adf_test(spread)
+    print(f"ADF statistic: {adf_stat:.4f}")
+    print(f"ADF p-value:   {p_value:.4f}")
+
+    half_life, theta = compute_half_life(spread)
+    print(f"Theta (mean reversion coefficient): {theta:.4f}")
+    print(f"Half-life: {half_life:.2f} days")
+
+    print("For out-of-sample data: ")
+    alpha, beta = compute_hedge_ratio(out_of_sample)
+    print(f"Hedge ratio (beta): {beta:.4f}")
+    print(f"Intercept (alpha):  {alpha:.4f}")
+
+    spread = compute_spread(out_of_sample, beta)
 
     adf_stat, p_value = adf_test(spread)
     print(f"ADF statistic: {adf_stat:.4f}")
