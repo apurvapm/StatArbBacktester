@@ -23,8 +23,9 @@ class AssetDataLoader:
         return out_of_sample
 
 class Strategy:
-    def __init__(self, q_multiplier=1e-9):
+    def __init__(self, q_multiplier=1e-9, use_kalman = True):
         self.q_multiplier = q_multiplier
+        self.use_kalman = use_kalman
         self.alpha = None
         self.static_beta = None
         self.R = None
@@ -63,7 +64,8 @@ class Strategy:
         self.P = (1-K*price_b_t)*P_pred
 
     def generate_signal(self, price_a_t, price_b_t):
-        self._step_kalman(price_a_t, price_b_t)
+        if self.use_kalman:
+            self._step_kalman(price_a_t, price_b_t)
 
         spread_t = price_a_t - self.beta*price_b_t
 
